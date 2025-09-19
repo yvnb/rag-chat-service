@@ -19,6 +19,7 @@ CREATE TABLE chat_messages
    content TEXT NOT NULL,
    retrieved_context TEXT,
    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
    CONSTRAINT fk_session FOREIGN KEY (session_id) REFERENCES chat_sessions (id) ON DELETE CASCADE
 );
 

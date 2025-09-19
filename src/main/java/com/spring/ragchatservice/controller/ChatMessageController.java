@@ -38,13 +38,11 @@ public class ChatMessageController {
     @RateLimit(capacity = 5, interval = 60)
     public ResponseEntity<APIResponse<ChatMessageDTO>> addMessage(
             @PathVariable UUID chatSessionId,
-            @Valid @RequestBody CreateMessageRequest request) {
+            @Valid @RequestBody CreateMessageRequest createMessageRequest) {
 
         ChatMessageDTO message = chatMessageService.addMessage(
                 chatSessionId,
-                request.getSender(),
-                request.getContent(),
-                request.getRetrievedContext()
+                createMessageRequest
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)

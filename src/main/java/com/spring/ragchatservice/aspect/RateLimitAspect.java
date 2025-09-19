@@ -15,6 +15,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Aspect
 @Component
@@ -22,40 +24,65 @@ import java.time.Duration;
 public class RateLimitAspect {
 
     private final RedissonClient redissonClient;
+    private final Map<String, LimitConfig> apiKeyConfig = new ConcurrentHashMap<>(Map.of(
+            "3e413391c9fd5d17e6247377beb218a0", new LimitConfig(100, 60),
+            "3e413391c9fd5d17e6247377beb218a1", new LimitConfig(1000, 60)
+    ));
 
     @Around("@annotation(rateLimit)")
     public Object applyRateLimit(ProceedingJoinPoint joinPoint, RateLimit rateLimit) throws Throwable  {
 
-        String clientIp = getClientIp();
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder
+                .currentRequestAttributes()).getRequest();
 
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        String methodKey = signature.getName();
+        String clientIp = getClientIp(request);
+        String methodKey = getMethodKey(joinPoint);
+        String apiKey = getApiKey(request);
 
-        String rateLimitKey = "rate_limit:%s:%s".formatted(clientIp, methodKey);
-        RRateLimiter rateLimiter = redissonClient.getRateLimiter(rateLimitKey);
-
-        // Initialize rate if not exists (permits, interval, timeunit)
-        rateLimiter.trySetRate(RateType.OVERALL, rateLimit.capacity(), Duration.ofSeconds(rateLimit.interval()));
-        rateLimiter.expire(Duration.ofMinutes(3));
-
-        if (!rateLimiter.tryAcquire(1)) {
-            throw new RateLimitException("Rate limit exceeded. Please try again later");
+        if (!apiKeyConfig.containsKey(apiKey)) {
+            throw new RateLimitException("Invalid API key");
         }
+
+        // Per-endpoint, per-IP limit
+        String endpointKey = "endpoint:" + clientIp + ":" + methodKey;
+        enforceLimiter(endpointKey, rateLimit.capacity(), rateLimit.interval());
+
+        // Global per-API-key limit
+        LimitConfig config = apiKeyConfig.get(apiKey);
+        String globalKey = "global:{" + apiKey + "}";
+        enforceLimiter(globalKey, config.getCapacity(), config.getIntervalInSeconds());
 
         return joinPoint.proceed();
 
     }
 
-    private String getClientIp() {
+    private void enforceLimiter(String key, long capacity, long intervalSec) {
+        RRateLimiter limiter = redissonClient.getRateLimiter(key);
 
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder
-                .currentRequestAttributes())
-                .getRequest();
+        // Token-bucket
+        limiter.trySetRate(RateType.OVERALL, capacity, Duration.ofSeconds(intervalSec));
+        limiter.expire(Duration.ofMinutes(5)); // auto remove idle keys
+
+        if (!limiter.tryAcquire(1)) {
+            throw new RateLimitException("Rate limit exceeded");
+        }
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+
         String ipAddress = request.getHeader("X-Forwarded-For");
         if (ipAddress == null || ipAddress.isEmpty()) {
             return request.getRemoteAddr();
         }
         return ipAddress.split(",")[0].trim();
+    }
+
+    private String getApiKey(HttpServletRequest request) {
+        return request.getHeader("X-API-Key");
+    }
+
+    private String getMethodKey(ProceedingJoinPoint joinPoint) {
+        return ((MethodSignature) joinPoint.getSignature()).getName();
     }
 
 }

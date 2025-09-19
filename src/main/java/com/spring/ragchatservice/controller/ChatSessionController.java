@@ -86,7 +86,7 @@ public class ChatSessionController {
         return ResponseEntity.ok(APIResponse.success(session, "Chat session retrieved successfully"));
     }
 
-    @PutMapping("/{sessionId}/title")
+    @PatchMapping("/{sessionId}/title")
     @Operation(summary = "Update session title")
     @RateLimit(capacity = 5, interval = 60)
     public ResponseEntity<APIResponse<ChatSessionDTO>> updateTitle(
@@ -97,7 +97,7 @@ public class ChatSessionController {
         return ResponseEntity.ok(APIResponse.success(session, "Chat session title updated successfully"));
     }
 
-    @PutMapping("/{sessionId}/favorite")
+    @PatchMapping("/{sessionId}/favorite")
     @Operation(summary = "Toggle favorite status")
     @RateLimit(capacity = 5, interval = 60)
     public ResponseEntity<APIResponse<ChatSessionDTO>> toggleFavorite(@PathVariable UUID sessionId) {

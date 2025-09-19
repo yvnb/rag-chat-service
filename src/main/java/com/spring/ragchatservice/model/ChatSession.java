@@ -4,23 +4,15 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name="chat_sessions")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatSession {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+public class ChatSession extends BaseEntity{
 
     @Column(nullable = false)
     private String userId;
@@ -33,12 +25,6 @@ public class ChatSession {
 
     @Column(name = "is_favorite", nullable = false)
     private boolean favorite = false;
-
-    @CreationTimestamp
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    private Instant updatedAt;
 
     @OneToMany(mappedBy = "chatSession", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatMessage> chatMessages;

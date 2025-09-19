@@ -4,21 +4,13 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "chat_messages")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatMessage {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+public class ChatMessage extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", nullable = false)
@@ -32,8 +24,5 @@ public class ChatMessage {
 
     @Column(nullable = false)
     private String sender;
-
-    @CreationTimestamp
-    private Instant createdAt;
 
 }

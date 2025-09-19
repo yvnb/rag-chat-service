@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD})
 public @interface RateLimit {
 
-    long capacity() default 3;
+    long capacity() default 5;
     long interval() default 60;
 
 }

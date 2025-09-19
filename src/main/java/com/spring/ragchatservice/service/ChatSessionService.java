@@ -2,9 +2,10 @@ package com.spring.ragchatservice.service;
 
 import com.spring.ragchatservice.dto.ChatSessionDTO;
 import com.spring.ragchatservice.dto.CreateSessionRequest;
+import com.spring.ragchatservice.exception.ResourceNotFoundException;
+import com.spring.ragchatservice.mapper.ChatSessionMapper;
 import com.spring.ragchatservice.model.ChatSession;
 import com.spring.ragchatservice.repository.ChatSessionRepository;
-import com.spring.ragchatservice.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -12,7 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -23,18 +23,14 @@ import java.util.stream.Collectors;
 public class ChatSessionService {
 
     private final ChatSessionRepository chatSessionRepository;
+    private final ChatSessionMapper chatSessionMapper;
 
     @Transactional
     public ChatSessionDTO createChatSession(CreateSessionRequest createSessionRequest) {
         log.info("creating new chat session for user: {}", createSessionRequest.getUserId());
-        ChatSession chatSession = new ChatSession();
-        chatSession.setUserId(createSessionRequest.getUserId());
-        chatSession.setTitle(createSessionRequest.getTitle());
-        chatSession.setDescription(createSessionRequest.getDescription());
-        chatSession.setCreatedAt(Instant.now());
-        chatSession.setUpdatedAt(Instant.now());
+        ChatSession chatSession = chatSessionMapper.toEntity(createSessionRequest);
         ChatSession savedSession = chatSessionRepository.save(chatSession);
-        return convertToDTO(savedSession);
+        return chatSessionMapper.toDto(savedSession);
     }
 
     @Transactional(readOnly = true)
@@ -42,7 +38,7 @@ public class ChatSessionService {
         log.info("Retrieving sessions for user: {}", userId);
         return chatSessionRepository.findByUserIdOrderByUpdatedAtDesc(userId)
                 .stream()
-                .map(this::convertToDTO)
+                .map(chatSessionMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -50,14 +46,14 @@ public class ChatSessionService {
     public Page<ChatSessionDTO> getPaginatedUserSessions(String userId, Pageable pageable) {
         log.info("Retrieving sessions for user: {}", userId);
         return chatSessionRepository.findByUserId(userId, pageable)
-                .map(this::convertToDTO);
+                .map(chatSessionMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public ChatSessionDTO getSessionById(UUID chatSessionId) {
         ChatSession session = chatSessionRepository.findById(chatSessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found with id: " + chatSessionId));
-        return convertToDTO(session);
+        return chatSessionMapper.toDto(session);
     }
 
     @Transactional(readOnly = true)
@@ -79,7 +75,7 @@ public class ChatSessionService {
 
         session.setTitle(newTitle);
         ChatSession updatedSession = chatSessionRepository.save(session);
-        return convertToDTO(updatedSession);
+        return chatSessionMapper.toDto(updatedSession);
     }
 
     @Transactional
@@ -91,7 +87,7 @@ public class ChatSessionService {
 
         session.setFavorite(!session.isFavorite());
         ChatSession updatedSession = chatSessionRepository.save(session);
-        return convertToDTO(updatedSession);
+        return chatSessionMapper.toDto(updatedSession);
     }
 
     @Transactional
@@ -108,20 +104,9 @@ public class ChatSessionService {
     public List<ChatSessionDTO> getFavoriteSessions(String userId) {
         return chatSessionRepository.findByUserIdAndFavoriteOrderByUpdatedAtDesc(userId, true)
                 .stream()
-                .map(this::convertToDTO)
+                .map(chatSessionMapper::toDto)
                 .collect(Collectors.toList());
     }
 
-    private ChatSessionDTO convertToDTO(ChatSession session) {
-        return new ChatSessionDTO(
-                session.getId(),
-                session.getUserId(),
-                session.getTitle(),
-                session.getDescription(),
-                session.isFavorite(),
-                session.getCreatedAt(),
-                session.getUpdatedAt()
-        );
-    }
 
 }
